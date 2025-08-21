@@ -1,5 +1,5 @@
 pipeline {
-    agent any
+    agent any                    // MAIN
 
     environment {
         // Mapeando as branches para os ambientes
@@ -13,7 +13,7 @@ pipeline {
             steps {
                 script {
                     //def branch = env.BRANCH_NAME
-                    def branch = des
+                    def branch = 'main'
                     if (branch == 'dev' || branch == 'main') {
                         echo "Iniciando build e testes para a branch ${branch}"
                         
@@ -53,7 +53,7 @@ pipeline {
         stage('Deploy Condicional') {
             steps {
                 script {
-                    def branch = env.BRANCH_NAME
+                    def branch = 'main'
                     def targetNamespace = ''
                     if (branch == 'dev') {
                         targetNamespace = 'des'
