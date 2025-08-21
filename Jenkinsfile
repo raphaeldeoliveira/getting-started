@@ -32,7 +32,8 @@ pipeline {
         stage('Construir e Publicar a Imagem') {
             steps {
                 script {
-                    def branch = env.BRANCH_NAME
+                    //def branch = env.BRANCH_NAME
+                    def branch = 'main'
                     if (branch == 'dev' || branch == 'main') {
                         echo "Passo 3: Construindo e publicando a imagem Docker..."
                         def imageTag = "${DOCKER_REGISTRY_USER}/${IMAGE_NAME}:${env.APP_VERSION}"
