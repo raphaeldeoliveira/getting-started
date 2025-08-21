@@ -34,9 +34,10 @@ pipeline {
                 script {
                     //def branch = env.BRANCH_NAME
                     def branch = 'main'
+                    def appVersion = sh(script: './mvnw help:evaluate -Dexpression=project.version -q -DforceStdout', returnStdout: true).trim()
                     if (branch == 'dev' || branch == 'main') {
                         echo "Passo 3: Construindo e publicando a imagem Docker..."
-                        def imageTag = "${DOCKER_REGISTRY_USER}/${IMAGE_NAME}:${env.APP_VERSION}"
+                        def imageTag = "${DOCKER_REGISTRY_USER}/${IMAGE_NAME}:${appVersion}"
                         
                         // Constroi a imagem com a tag correta
                         sh "docker build -t ${imageTag} ."
@@ -82,7 +83,7 @@ pipeline {
             }
         }
     }
-// aaa
+// main
     post {
         success {
             echo "Pipeline executada com Sucesso"
