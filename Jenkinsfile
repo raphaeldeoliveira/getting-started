@@ -12,7 +12,8 @@ pipeline {
         stage('Build e Testes Condicionais') {
             steps {
                 script {
-                    def branch = env.BRANCH_NAME
+                    //def branch = env.BRANCH_NAME
+                    def branch = 'dev'
                     if (branch == 'dev' || branch == 'main') {
                         echo "Iniciando build e testes para a branch ${branch}"
                         
