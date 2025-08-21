@@ -24,4 +24,12 @@ public class GreetingResource {
     public String hello() {
         return "hello";
     }
+
+    // --- NOVO ENDPOINT ---
+    @GET
+    @Path("/goodbye")
+    @Produces(MediaType.TEXT_PLAIN)
+    public String goodbye() {
+        return "goodbye";
+    }
 }
