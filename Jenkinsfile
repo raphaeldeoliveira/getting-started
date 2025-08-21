@@ -39,7 +39,7 @@ pipeline {
                         def imageTag = "${DOCKER_REGISTRY_USER}/${IMAGE_NAME}:${appVersion}"
                         
                         // Constroi a imagem com a tag correta
-                        sh "docker build -t ${imageTag} ."
+                        sh "docker build -t ${imageTag} --no-cache ."
                         
                         // Faz o push para o Docker Hub
                         sh "docker push ${imageTag}"
