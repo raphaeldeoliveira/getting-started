@@ -47,7 +47,8 @@ pipeline {
 
         stage('Deploy em DEV') {
             when {
-                branch 'dev'
+                // Usando a variável de ambiente para ser mais explícito
+                expression { env.BRANCH_NAME == 'dev' }
             }
             steps {
                 script {
@@ -56,7 +57,7 @@ pipeline {
                     def deploymentFile = "./kubernetes/${targetNamespace}/deployment.yaml"
                     def updatedDeploymentFile = "./kubernetes/${targetNamespace}/deployment-updated.yaml"
                     
-                    echo "Iniciando deploy para o ambiente de Desenvolvimento..."
+                    echo "Iniciando deploy para o ambiente de Desenvolvimento (Branch: ${env.BRANCH_NAME})"
                     sh "minikube kubectl -- create namespace ${targetNamespace} || true"
                     
                     echo "Atualizando o deployment para usar a imagem ${DOCKER_IMAGE_TAGGED}"
@@ -75,7 +76,8 @@ pipeline {
 
         stage('Deploy em PRD') {
              when {
-                branch 'main'
+                // Usando a variável de ambiente para ser mais explícito
+                expression { env.BRANCH_NAME == 'main' }
             }
             steps {
                 script {
@@ -84,7 +86,7 @@ pipeline {
                     def deploymentFile = "./kubernetes/${targetNamespace}/deployment.yaml"
                     def updatedDeploymentFile = "./kubernetes/${targetNamespace}/deployment-updated.yaml"
                     
-                    echo "Iniciando deploy para o ambiente de Produção..."
+                    echo "Iniciando deploy para o ambiente de Produção (Branch: ${env.BRANCH_NAME})"
                     sh "minikube kubectl -- create namespace ${targetNamespace} || true"
                     
                     echo "Atualizando o deployment para usar a imagem ${DOCKER_IMAGE_TAGGED}"
