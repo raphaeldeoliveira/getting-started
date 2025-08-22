@@ -8,18 +8,26 @@ pipeline {
     }
 
     stages {
+        stage('Checkout') {
+            steps {
+                // Passo 1: Limpa o workspace de builds anteriores
+                cleanWs()
+                // Passo 2: Baixa o código do repositório
+                checkout scm
+                echo "Código baixado com sucesso."
+            }
+        }
+        
         stage('Build e Testes') {
             steps {
                 echo 'Iniciando a etapa de Build e Testes...'
-                cleanWs()
+                // Agora o arquivo mvnw existe e o comando vai funcionar
                 sh './mvnw clean package'
             }
         }
         
         stage('Construir e Publicar Imagem no Docker Hub') {
             steps {
-                // Aqui você precisará configurar as credenciais do Docker Hub no Jenkins
-                // e envolvê-las no comando de push.
                 withCredentials([usernamePassword(credentialsId: 'dockerhub-credentials', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
                     script {
                         echo "Construindo a imagem Docker: ${DOCKER_IMAGE_TAGGED}"
@@ -44,7 +52,6 @@ pipeline {
             steps {
                 script {
                     def targetNamespace = 'des'
-                    // IMPORTANTE: O nome do deployment no seu YAML é 'getting-started-des'
                     def deploymentName = "${APP_NAME}-des"
                     def deploymentFile = "./kubernetes/${targetNamespace}/deployment.yaml"
                     def updatedDeploymentFile = "./kubernetes/${targetNamespace}/deployment-updated.yaml"
@@ -52,11 +59,9 @@ pipeline {
                     echo "Iniciando deploy para o ambiente de Desenvolvimento..."
                     sh "minikube kubectl -- create namespace ${targetNamespace} || true"
                     
-                    // ATUALIZA O ARQUIVO DE DEPLOYMENT COM A NOVA IMAGEM
                     echo "Atualizando o deployment para usar a imagem ${DOCKER_IMAGE_TAGGED}"
                     sh "sed 's|image: .*|image: ${DOCKER_IMAGE_TAGGED}|g' ${deploymentFile} > ${updatedDeploymentFile}"
                     
-                    // APLICA O ARQUIVO ATUALIZADO
                     sh "minikube kubectl -- apply -f ${updatedDeploymentFile}"
                     sh "minikube kubectl -- apply -f ./kubernetes/${targetNamespace}/service.yaml"
                     
@@ -68,11 +73,36 @@ pipeline {
             }
         }
 
-        // Você pode criar um estágio 'Deploy em PRD' similar, se necessário.
+        stage('Deploy em PRD') {
+             when {
+                branch 'main'
+            }
+            steps {
+                script {
+                    def targetNamespace = 'prd'
+                    def deploymentName = "${APP_NAME}-prd"
+                    def deploymentFile = "./kubernetes/${targetNamespace}/deployment.yaml"
+                    def updatedDeploymentFile = "./kubernetes/${targetNamespace}/deployment-updated.yaml"
+                    
+                    echo "Iniciando deploy para o ambiente de Produção..."
+                    sh "minikube kubectl -- create namespace ${targetNamespace} || true"
+                    
+                    echo "Atualizando o deployment para usar a imagem ${DOCKER_IMAGE_TAGGED}"
+                    sh "sed 's|image: .*|image: ${DOCKER_IMAGE_TAGGED}|g' ${deploymentFile} > ${updatedDeploymentFile}"
+
+                    sh "minikube kubectl -- apply -f ${updatedDeploymentFile}"
+                    sh "minikube kubectl -- apply -f ./kubernetes/${targetNamespace}/service.yaml"
+                    
+                    echo "Aguardando o Deployment ser concluido..."
+                    sh "minikube kubectl -- rollout status deployment/${deploymentName} -n ${targetNamespace}"
+                    
+                    echo "Deploy para PRD concluido com sucesso."
+                }
+            }
+        }
     }
     post {
         always {
-            // Logout do Docker Hub e limpeza
             sh "docker logout"
             sh "rm -f ./kubernetes/des/deployment-updated.yaml ./kubernetes/prd/deployment-updated.yaml"
         }
