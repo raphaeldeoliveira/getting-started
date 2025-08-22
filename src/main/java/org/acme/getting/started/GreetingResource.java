@@ -30,6 +30,6 @@ public class GreetingResource {
     @Path("/goodbye")
     @Produces(MediaType.TEXT_PLAIN)
     public String goodbye() {
-        return "goodbye";
+        return "testeeeeeeee";
     }
 }
