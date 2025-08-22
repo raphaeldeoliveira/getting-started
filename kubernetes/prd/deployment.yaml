@@ -16,5 +16,6 @@ spec:
       containers:
       - name: getting-started
         image: raphaelcarvalho30/getting-started:1.0.0 # A imagem é a mesma
+        imagePullPolicy: Always 
         ports:
         - containerPort: 8080
