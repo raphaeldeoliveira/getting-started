@@ -46,10 +46,10 @@ pipeline {
         }
 
         stage('Deploy em DEV') {
-            when {
+            //when {
                 // Usando a variável de ambiente para ser mais explícito
-                expression { env.BRANCH_NAME == 'dev' }
-            }
+                //expression { env.BRANCH_NAME == 'dev' }
+            //}
             steps {
                 script {
                     def targetNamespace = 'des'
@@ -75,10 +75,10 @@ pipeline {
         }
 
         stage('Deploy em PRD') {
-             when {
+            // when {
                 // Usando a variável de ambiente para ser mais explícito
-                expression { env.BRANCH_NAME == 'main' }
-            }
+                //expression { env.BRANCH_NAME == 'main' }
+            //}
             steps {
                 script {
                     def targetNamespace = 'prd'
