@@ -1,95 +1,78 @@
 pipeline {
-    agent any                    // MAIN
-
+    agent any
     environment {
-        // Mapeando as branches para os ambientes
-        IMAGE_NAME = "getting-started"
-        IMAGE_TAG = "1.0.0-${BUILD_NUMBER}" // Usando o numero da build como tag
+        APP_NAME = "getting-started"
         DOCKER_REGISTRY_USER = "raphaelcarvalho30"
+        APP_VERSION = "1.0.0-${env.BUILD_NUMBER}"
+        DOCKER_IMAGE_TAGGED = "${DOCKER_REGISTRY_USER}/${APP_NAME}:${APP_VERSION}"
     }
 
     stages {
-        stage('Build e Testes Condicionais') {
+        stage('Checkout') {
             steps {
-                script {
-                    //def branch = env.BRANCH_NAME
-                    def branch = 'main'
-                    if (branch == 'dev' || branch == 'main') {
-                        echo "Iniciando build e testes para a branch ${branch}"
-                        
-                        // Passo 1: Compilar a aplicação
-                        sh './mvnw clean package'
-
-                        // Passo 2: Executar testes unitários
-                        sh './mvnw test'
-                    } else {
-                        echo "Branch ${branch} nao tem pipeline de build configurada. Ignorando."
-                    }
-                }
+                // Passo 1: Limpa o workspace de builds anteriores
+                cleanWs()
+                // Passo 2: Baixa o código do repositório
+                checkout scm
+                echo "Código baixado com sucesso."
             }
         }
         
-        stage('Construir e Publicar a Imagem') {
+        stage('Build e Testes') {
             steps {
-                script {
-                    //def branch = env.BRANCH_NAME
-                    def branch = 'main'
-                    def appVersion = sh(script: './mvnw help:evaluate -Dexpression=project.version -q -DforceStdout', returnStdout: true).trim()
-                    if (branch == 'dev' || branch == 'main') {
-                        echo "Passo 3: Construindo e publicando a imagem Docker..."
-                        def imageTag = "${DOCKER_REGISTRY_USER}/${IMAGE_NAME}:${appVersion}"
+                echo 'Iniciando a etapa de Build e Testes...'
+                // Agora o arquivo mvnw existe e o comando vai funcionar
+                sh './mvnw clean package'
+            }
+        }
+        
+        stage('Construir e Publicar Imagem no Docker Hub') {
+            steps {
+                withCredentials([usernamePassword(credentialsId: 'dockerhub-credentials', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+                    script {
+                        echo "Construindo a imagem Docker: ${DOCKER_IMAGE_TAGGED}"
+                        sh "docker build -t ${DOCKER_IMAGE_TAGGED} ."
+
+                        echo "Fazendo login no Docker Hub..."
+                        sh "echo ${DOCKER_PASS} | docker login -u ${DOCKER_USER} --password-stdin"
+
+                        echo "Publicando a imagem no Docker Hub..."
+                        sh "docker push ${DOCKER_IMAGE_TAGGED}"
                         
-                        // Constroi a imagem com a tag correta
-                        sh "docker build -t ${imageTag} ."
-                        
-                        // Faz o push para o Docker Hub
-                        sh "docker push ${imageTag}"
-                        
-                        echo "Imagem ${imageTag} publicada com sucesso no Docker Hub."
+                        echo "Imagem ${DOCKER_IMAGE_TAGGED} publicada com sucesso."
                     }
                 }
             }
         }
-
-        stage('Deploy Condicional') {
+        stage('Deploy em PRD') {
             steps {
                 script {
-                    def branch = 'main'
-                    def targetNamespace = ''
-                    if (branch == 'dev') {
-                        targetNamespace = 'des'
-                    } else if (branch == 'main') {
-                        targetNamespace = 'prd'
-                    }
+                    def targetNamespace = 'prd'
+                    def deploymentName = "${APP_NAME}-prd"
+                    def deploymentFile = "./kubernetes/${targetNamespace}/deployment.yaml"
+                    def updatedDeploymentFile = "./kubernetes/${targetNamespace}/deployment-updated.yaml"
                     
-                    if (targetNamespace != '') {
-                        echo "Passo 4: Iniciando deploy para o ambiente ${targetNamespace}..."
-                        
-                        // Aplica os manifestos do Kubernetes
-                        sh "minikube kubectl -- create namespace ${targetNamespace} || true"
-                        sh "minikube kubectl -- apply -f kubernetes/${targetNamespace}/deployment.yaml"
-                        sh "minikube kubectl -- apply -f kubernetes/${targetNamespace}/service.yaml"
-                        
-                        echo "Aguardando o Deployment ser concluido..."
-                        sh "minikube kubectl -- rollout status deployment/${IMAGE_NAME}-${targetNamespace} -n ${targetNamespace}"
-                        
-                        echo "Passo 5: Validando a aplicacao no ambiente ${targetNamespace}..."
-                        def serviceUrl = sh(script: "minikube service ${IMAGE_NAME}-service-${targetNamespace} --namespace=${targetNamespace} --url", returnStdout: true).trim()
-                        sh "curl --fail --silent ${serviceUrl}/hello"
-                        
-                        echo "Deploy e validacao para ${targetNamespace} concluido com sucesso."
-                    }
+                    echo "Iniciando deploy para o ambiente de Produção (Branch: ${env.BRANCH_NAME})"
+                    sh "minikube kubectl -- create namespace ${targetNamespace} || true"
+                    
+                    echo "Atualizando o deployment para usar a imagem ${DOCKER_IMAGE_TAGGED}"
+                    sh "sed 's|image: .*|image: ${DOCKER_IMAGE_TAGGED}|g' ${deploymentFile} > ${updatedDeploymentFile}"
+
+                    sh "minikube kubectl -- apply -f ${updatedDeploymentFile}"
+                    sh "minikube kubectl -- apply -f ./kubernetes/${targetNamespace}/service.yaml"
+                    
+                    echo "Aguardando o Deployment ser concluido..."
+                    sh "minikube kubectl -- rollout status deployment/${deploymentName} -n ${targetNamespace}"
+                    
+                    echo "Deploy para PRD concluido com sucesso."
                 }
             }
         }
     }
-// main
     post {
-        success {
-            echo "Pipeline executada com Sucesso"
-        }
-        failure {
-            echo "Pipeline executada com Falha"
-        }
+        always {
+            sh "docker logout"
+            sh "rm -f ./kubernetes/des/deployment-updated.yaml ./kubernetes/prd/deployment-updated.yaml"
+        } // versão funcional
     }
 }
