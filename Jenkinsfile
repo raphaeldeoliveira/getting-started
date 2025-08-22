@@ -105,6 +105,6 @@ pipeline {
         always {
             sh "docker logout"
             sh "rm -f ./kubernetes/des/deployment-updated.yaml ./kubernetes/prd/deployment-updated.yaml"
-        }
+        } // AAAAAHHHHHHHHHHH
     }
 }
