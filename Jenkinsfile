@@ -46,10 +46,6 @@ pipeline {
         }
 
         stage('Deploy em DEV') {
-            //when {
-                // Usando a variável de ambiente para ser mais explícito
-                //expression { env.BRANCH_NAME == 'dev' }
-            //}
             steps {
                 script {
                     def targetNamespace = 'des'
@@ -70,35 +66,6 @@ pipeline {
                     sh "minikube kubectl -- rollout status deployment/${deploymentName} -n ${targetNamespace}"
                     
                     echo "Deploy para DES concluido com sucesso."
-                }
-            }
-        }
-
-        stage('Deploy em PRD') {
-            // when {
-                // Usando a variável de ambiente para ser mais explícito
-                //expression { env.BRANCH_NAME == 'main' }
-            //}
-            steps {
-                script {
-                    def targetNamespace = 'prd'
-                    def deploymentName = "${APP_NAME}-prd"
-                    def deploymentFile = "./kubernetes/${targetNamespace}/deployment.yaml"
-                    def updatedDeploymentFile = "./kubernetes/${targetNamespace}/deployment-updated.yaml"
-                    
-                    echo "Iniciando deploy para o ambiente de Produção (Branch: ${env.BRANCH_NAME})"
-                    sh "minikube kubectl -- create namespace ${targetNamespace} || true"
-                    
-                    echo "Atualizando o deployment para usar a imagem ${DOCKER_IMAGE_TAGGED}"
-                    sh "sed 's|image: .*|image: ${DOCKER_IMAGE_TAGGED}|g' ${deploymentFile} > ${updatedDeploymentFile}"
-
-                    sh "minikube kubectl -- apply -f ${updatedDeploymentFile}"
-                    sh "minikube kubectl -- apply -f ./kubernetes/${targetNamespace}/service.yaml"
-                    
-                    echo "Aguardando o Deployment ser concluido..."
-                    sh "minikube kubectl -- rollout status deployment/${deploymentName} -n ${targetNamespace}"
-                    
-                    echo "Deploy para PRD concluido com sucesso."
                 }
             }
         }
